@@ -10,7 +10,7 @@ from scrapy.exporters import CsvItemExporter
 
 class WriteItemPipeline(object):
     def __init__(self):
-        self.filename = 'instagram7.csv'
+        self.filename = 'anime_stats.csv'
 
     def open_spider(self, spider):
         self.csvfile = open(self.filename, 'wb')
