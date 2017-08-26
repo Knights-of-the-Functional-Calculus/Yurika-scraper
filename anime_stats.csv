@@ -1,6 +1,4 @@
-_id,title
-5,Cowboy Bebop: Tengoku no Tobira
-6,Trigun
-8,Beet the Vandel Buster
-7,Witch Hunter Robin
-1,Cowboy Bebop
+title,_id
+Cowboy Bebop: Tengoku no Tobira,5
+Cowboy Bebop,1
+Beet the Vandel Buster,8

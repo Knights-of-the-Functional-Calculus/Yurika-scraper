@@ -55,6 +55,9 @@ CONCURRENT_REQUESTS_PER_DOMAIN = 16
 #DOWNLOADER_MIDDLEWARES = {
 #    'yurika.middlewares.MyCustomDownloaderMiddleware': 543,
 #}
+DOWNLOADER_MIDDLEWARES = {
+'scrapy.contrib.downloadermiddleware.httpproxy.HttpProxyMiddleware': 1,
+}
 
 # Enable or disable extensions
 # See http://scrapy.readthedocs.org/en/latest/topics/extensions.html
