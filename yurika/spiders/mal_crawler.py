@@ -2,6 +2,8 @@
 import scrapy
 from yurika.items import YurikaItem
 from scrapy.spidermiddlewares.httperror import HttpError
+from twisted.internet.error import DNSLookupError
+from twisted.internet.error import TimeoutError
 import random
 import logging
 
@@ -48,9 +50,9 @@ class MalCrawlerSpider(scrapy.Spider):
 			yield request
 
 	def handle_miss(self, failure):
+		logger = logging.getLogger('scrapy')
 		if failure.check(HttpError):
 			if failure.value.response.status == 429:
-				logger = logging.getLogger('scrapy')
 				logger.info("Retrying entry..." + failure.value.response.url)
 				yield scrapy.Request(url=failure.value.response.url,
 									callback=self.grab_data, 
@@ -66,4 +68,11 @@ class MalCrawlerSpider(scrapy.Spider):
 											meta={'id': failure.value.response.meta['id']+16})
 					request.meta['proxy'] = 'https://' + random.choice(MalCrawlerSpider.proxy_list)
 					yield request
+		elif failure.check(DNSLookupError):
+			request = failure.request
+			logger.error('DNSLookupError on %s', request.url)
+
+		elif failure.check(TimeoutError):
+			request = failure.request
+			logger.error('TimeoutError on %s', request.url)
 
