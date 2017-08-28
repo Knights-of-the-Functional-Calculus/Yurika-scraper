@@ -13,3 +13,4 @@ class YurikaItem(scrapy.Item):
     # name = scrapy.Field()
     _id = scrapy.Field()
     title = scrapy.Field()
+    num_episodes = scrapy.Field()

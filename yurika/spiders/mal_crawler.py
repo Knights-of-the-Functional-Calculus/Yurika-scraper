@@ -5,6 +5,9 @@ from scrapy.spidermiddlewares.httperror import HttpError
 from twisted.internet.error import DNSLookupError
 from twisted.internet.error import TimeoutError
 from twisted.internet.error import TCPTimedOutError
+from scrapy.xlib.pydispatch import dispatcher
+from scrapy import signals
+from scrapy import Selector
 import random
 import logging
 
@@ -24,6 +27,7 @@ class MalCrawlerSpider(scrapy.Spider):
 		logger = logging.getLogger('scrapy')
 		logger.setLevel(logging.INFO)
 		super().__init__(*args, **kwargs)
+		dispatcher.connect(self.spider_closed, signals.spider_closed)
 		self.generate_requests()
 
 	def parse(self, response):
@@ -45,8 +49,16 @@ class MalCrawlerSpider(scrapy.Spider):
 		item = YurikaItem()
 		#TODO: add more properties
 		item['_id'] = response.meta['id']
-		item['title'] = response.css('.h1').xpath('./span/text()').extract()[0]
+		item['title'] = response.css('.h1').xpath('./span/text()').extract_first()
+		i = 0
+		objects = response.css('.js-scrollfix-bottom').css('.spaceit').extract()
+		for o in objects:
+			if "Episodes:" in o:
+				break
+			i+=1
+		item['num_episodes'] = int(Selector(text=objects[i]).css('.spaceit').xpath('./text()').extract()[1].strip())
 		yield item
+		print(item)
 		if MalCrawlerSpider.requests:
 			yield MalCrawlerSpider.requests.pop()
 
@@ -64,16 +76,36 @@ class MalCrawlerSpider(scrapy.Spider):
 				request.meta['proxy'] = 'https://' + random.choice(MalCrawlerSpider.proxy_list)
 				yield request
 			elif failure.value.response.status == 404:
-				pass
+				if MalCrawlerSpider.requests:
+					yield MalCrawlerSpider.requests.pop()
+			elif failure.value.response.status in [400, 405, 407, 500]:
+				print(MalCrawlerSpider.proxy_list)
+				if failure.request.meta['proxy'] in MalCrawlerSpider.proxy_list:
+					MalCrawlerSpider.proxy_list.remove(failure.request.meta['proxy'])
+				print(MalCrawlerSpider.proxy_list)
+				logger.error("Check connectivity and that proxy " 
+							+ failure.request.meta['proxy']
+							+ " is up and not blocked.")
+				MalCrawlerSpider.check_proxies.append(failure.request.meta['proxy'] + '\n')
+				request = scrapy.Request(url=failure.value.response.url,
+									callback=self.grab_data, 
+									errback=self.handle_miss, 
+									dont_filter=True, 
+									meta={'id': failure.value.response.meta['id']})
+				request.meta['proxy'] = 'https://' + random.choice(MalCrawlerSpider.proxy_list)
+				yield request
 		elif failure.check(TCPTimedOutError,TimeoutError):
+			MalCrawlerSpider.proxy_list.remove(failure.request.meta['proxy'])
 			logger.error("Check connectivity and that proxy " 
 						+ failure.request.meta['proxy']
 						+ " is up and not blocked.")
 			MalCrawlerSpider.check_proxies.append(failure.request.meta['proxy'] + '\n')
 
+
 	def spider_closed(self, spider):
-		with open('yurika/proxy_list.txt','w') as f:
-			for p in MalCrawlerSpider.proxy_list:
-				if not p in MalCrawlerSpider.check_proxies:
-					f.write(p)
+		pass
+		# with open('yurika/proxy_list.txt','w') as f:
+		# 	for p in MalCrawlerSpider.proxy_list:
+		# 		if not p in MalCrawlerSpider.check_proxies:
+		# 			f.write(p)
 
