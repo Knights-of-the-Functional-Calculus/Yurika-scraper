@@ -18,7 +18,7 @@ class MalCrawlerSpider(scrapy.Spider):
 	with open('yurika/proxy_list.txt','r') as f:
 		proxy_list = [l.strip() for l in f.readlines()]
 	check_proxies = []
-	max_series = 500
+	max_series = 36000
 	anime_link = 'https://myanimelist.net/anime/'
 	requests = []
 
@@ -31,7 +31,7 @@ class MalCrawlerSpider(scrapy.Spider):
 		self.generate_requests()
 
 	def parse(self, response):
-		for i in range(1,17):
+		for i in range(1,33):
 			yield MalCrawlerSpider.requests.pop()
 
 	def generate_requests(self):
@@ -56,9 +56,12 @@ class MalCrawlerSpider(scrapy.Spider):
 			if "Episodes:" in o:
 				break
 			i+=1
-		item['num_episodes'] = int(Selector(text=objects[i]).css('.spaceit').xpath('./text()').extract()[1].strip())
+
+		num_episodes = Selector(text=objects[i]).css('.spaceit') \
+								.xpath('./text()').extract()[1].strip()
+		item['num_episodes'] = int(num_episodes) if num_episodes.isdigit() else -1
+		
 		yield item
-		print(item)
 		if MalCrawlerSpider.requests:
 			yield MalCrawlerSpider.requests.pop()
 
@@ -79,26 +82,27 @@ class MalCrawlerSpider(scrapy.Spider):
 				if MalCrawlerSpider.requests:
 					yield MalCrawlerSpider.requests.pop()
 			elif failure.value.response.status in [400, 405, 407, 500]:
-				print(MalCrawlerSpider.proxy_list)
-				if failure.request.meta['proxy'] in MalCrawlerSpider.proxy_list:
-					MalCrawlerSpider.proxy_list.remove(failure.request.meta['proxy'])
-				print(MalCrawlerSpider.proxy_list)
-				logger.error("Check connectivity and that proxy " 
+			# 	if failure.request.meta['proxy'] in MalCrawlerSpider.proxy_list:
+			# 		MalCrawlerSpider.proxy_list.remove(failure.request.meta['proxy'])
+				logger.error(str(failure.value.response.status) + ": Check connectivity and that proxy " 
 							+ failure.request.meta['proxy']
-							+ " is up and not blocked.")
-				MalCrawlerSpider.check_proxies.append(failure.request.meta['proxy'] + '\n')
-				request = scrapy.Request(url=failure.value.response.url,
-									callback=self.grab_data, 
-									errback=self.handle_miss, 
-									dont_filter=True, 
-									meta={'id': failure.value.response.meta['id']})
-				request.meta['proxy'] = 'https://' + random.choice(MalCrawlerSpider.proxy_list)
-				yield request
+							+ " is up and not blocked. Failed to connect to: "
+							+ failure.value.response.url)
+			# 	MalCrawlerSpider.check_proxies.append(failure.request.meta['proxy'] + '\n')
+			# 	request = scrapy.Request(url=failure.value.response.url,
+			# 						callback=self.grab_data, 
+			# 						errback=self.handle_miss, 
+			# 						dont_filter=True, 
+			# 						meta={'id': failure.value.response.meta['id']})
+			# 	request.meta['proxy'] = 'https://' + random.choice(MalCrawlerSpider.proxy_list)
+			# 	yield request
 		elif failure.check(TCPTimedOutError,TimeoutError):
-			MalCrawlerSpider.proxy_list.remove(failure.request.meta['proxy'])
-			logger.error("Check connectivity and that proxy " 
+			if failure.request.meta['proxy'] in MalCrawlerSpider.proxy_list:
+				MalCrawlerSpider.proxy_list.remove(failure.request.meta['proxy'])
+			logger.error("TIME: Check connectivity and that proxy " 
 						+ failure.request.meta['proxy']
-						+ " is up and not blocked.")
+						+ " is up and not blocked. Failed to connect to: "
+						+ failure.value.response.url)
 			MalCrawlerSpider.check_proxies.append(failure.request.meta['proxy'] + '\n')
 
 

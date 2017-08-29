@@ -6,15 +6,17 @@
 # See: http://doc.scrapy.org/en/latest/topics/item-pipeline.html
 
 from scrapy.exceptions import DropItem
-from scrapy.exporters import CsvItemExporter
+#from scrapy.exporters import CsvItemExporter
+from scrapy.exporters import JsonItemExporter
 
 class WriteItemPipeline(object):
     def __init__(self):
-        self.filename = 'anime_stats.csv'
+        self.filename = 'anime_stats.json'
 
     def open_spider(self, spider):
         self.csvfile = open(self.filename, 'wb')
-        self.exporter = CsvItemExporter(self.csvfile)
+        #self.exporter = CsvItemExporter(self.csvfile)
+        self.exporter = JsonItemExporter(self.csvfile)
         self.exporter.start_exporting()
 
     def close_spider(self, spider):
